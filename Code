@@ -1,0 +1,90 @@
+
+
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.datasets import load_iris
+from sklearn.preprocessing import StandardScaler
+
+
+def load_data():
+    data = load_iris(as_frame=True)
+    df = data.frame
+    X = df[['sepal length (cm)', 'sepal width (cm)']]
+    return df, X
+
+
+def scale_features(X):
+    
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    return X_scaled, scaler
+
+
+def find_optimal_k(X_scaled, max_k=10):
+    
+    inertia = []
+    k_range = range(1, max_k)
+
+    for k in k_range:
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+        kmeans.fit(X_scaled)
+        inertia.append(kmeans.inertia_)
+
+    plt.figure(figsize=(8, 4))
+    plt.plot(k_range, inertia, marker='o')
+    plt.xlabel('Number of Clusters (k)')
+    plt.ylabel('Inertia')
+    plt.title('Elbow Method for Optimal k')
+    plt.grid(True)
+    plt.savefig("outputs/elbow_method.png", bbox_inches='tight')
+    plt.show()
+
+
+def apply_kmeans(df, X_scaled, scaler, k=3):
+    
+    kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+    df['Cluster'] = kmeans.fit_predict(X_scaled)
+
+    centroids = scaler.inverse_transform(kmeans.cluster_centers_)
+    centroid_df = pd.DataFrame(centroids, columns=['Sepal Length', 'Sepal Width'])
+
+    plt.figure(figsize=(8, 6))
+    plt.scatter(df['sepal length (cm)'], df['sepal width (cm)'],
+                c=df['Cluster'], cmap='viridis', s=50, label='Customers')
+    plt.scatter(centroid_df['Sepal Length'], centroid_df['Sepal Width'],
+                marker='X', s=200, color='red', label='Centroids')
+
+    plt.xlabel('Feature 1')
+    plt.ylabel('Feature 2')
+    plt.title(f'Customer Segmentation using K-Means (k={k})')
+    plt.legend()
+    plt.savefig("outputs/cluster_visualization.png", bbox_inches='tight')
+    plt.show()
+
+    return df
+
+
+def print_cluster_summary(df):
+    
+    summary = df.groupby('Cluster')[['sepal length (cm)', 'sepal width (cm)']].mean()
+    print("\n--- Cluster Summary (Mean Feature Values) ---")
+    print(summary)
+
+    print("""
+Interpretation:
+- Each cluster represents a distinct customer segment.
+- Businesses can use this to personalize offers and marketing strategies.
+""")
+
+
+def main():
+    df, X = load_data()
+    X_scaled, scaler = scale_features(X)
+    find_optimal_k(X_scaled)
+    df = apply_kmeans(df, X_scaled, scaler, k=3)
+    print_cluster_summary(df)
+
+
+if __name__ == "__main__":
+    main()
